@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+    <video class="localVideo" src="video.mp4" playsinline autoplay muted controls style="height: 400px;"></video>
+    <video class="remoteVideo" src="video.mp4" playsinline autoplay muted controls style="height: 400px;"></video>
+    <script src='http://localhost:5000/socket.io/socket.io.js'></script>
+    <script>
+    
+    const socket = io('http://localhost:5000');
+    const remoteVideo = document.querySelector('.remoteVideo');
+    const localVideo = document.querySelector('.localVideo');
+
+    const config = {
+      // 'iceServers': [
+      //   {
+      //       url: 'turn:27.7.242.231',
+      //       username: 'username',
+      //       credential: 'password'
+      //   }
+      // ]
+    };
+    socket.emit('join', '_room');
+    const peerConnection = new RTCPeerConnection(config);
+    navigator.mediaDevices.getDisplayMedia().then((stream) => {
+      // if (localVideo instanceof HTMLVideoElement) {
+      //   !localVideo.srcObject && (localVideo.srcObject = stream);
+      // }
+      window.s = stream;
+      peerConnection.addStream(stream);
+      peerConnection.createOffer().then((sdp) => {
+        return peerConnection.setLocalDescription(sdp);
+      }).then(() => {
+        socket.emit('offer', peerConnection.localDescription);
+      });
+    }).catch(err => {
+      alert(err)
+    })
+
+    socket.on('answer', (message) => {
+      console.log('got answer');
+      console.log(message);
+      peerConnection.setRemoteDescription(message);
+    });
+
+
+    const peerConnection2 = new RTCPeerConnection(config);
+    socket.on('offer', (message) => {
+      console.log('offer received');
+      console.log(message);
+      peerConnection2.setRemoteDescription(message).then(() => {
+        return peerConnection2.createAnswer()
+      }).then((sdp) => {
+        return peerConnection2.setLocalDescription(sdp)
+      }).then(() => {
+        socket.emit('answer', peerConnection2.localDescription)
+      });
+    });
+    peerConnection2.ontrack = (t) => {
+      remoteVideo.srcObject = t.streams[0];
+    }
+    // peerConnection2.onaddstream = (event) => {
+    //   console.log('added stream');
+    //   console.log(event);
+    //   remoteVideo.srcObject = event.stream;
+    // }
+    peerConnection2.ontrack = (event) => {
+      console.log('added track');
+      console.log(event);
+      remoteVideo.srcObject = event.streams[0];
+    }
+    
+    </script>
+</body>
+</html>

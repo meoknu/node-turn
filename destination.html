@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+
+<body>
+  <video class="remoteVideo" playsinline autoplay muted style="height: 200px;"></video>
+  <script src='http://localhost:5000/socket.io/socket.io.js'></script>
+  <script>
+    const socket = io('http://localhost:5000');
+    const remoteVideo = document.querySelector('.remoteVideo');
+    const config =
+    // {
+    //   iceTransportPolicy: 'relay',
+    //   "iceServers": [{ 
+    //     "username": "z4VZO6whHJYlpjit3_wpywf0VfbxoCbWc2pwQ7vYgCp2gxii16mt0DhJh1pmF4BNAAAAAF1G9ldyYWdoYXZh",
+    //     "urls": ["stun:ws-turn3.xirsys.com", "turn:ws-turn3.xirsys.com:80?transport=udp", "turn:ws-turn3.xirsys.com:3478?transport=udp", "turn:ws-turn3.xirsys.com:80?transport=tcp", "turn:ws-turn3.xirsys.com:3478?transport=tcp", "turns:ws-turn3.xirsys.com:443?transport=tcp", "turns:ws-turn3.xirsys.com:5349?transport=tcp"],
+    //     "credential": "8f638840-b6ca-11e9-9e49-069f0817bf63" 
+    //   }]
+    // }
+    {  
+      iceTransportPolicy: 'relay',
+      iceServers: [
+        {
+          urls: ['stun:27.7.242.231']
+        },
+        {
+            urls: ['turn:27.7.242.231'],
+            username: 'username',
+            credential: 'password'
+        }
+      ]
+    };
+
+    const peerConnection2 = new RTCPeerConnection(config);
+    socket.on('offer', (message) => {
+      console.log('offer received');
+      console.log(message);
+      peerConnection2.setRemoteDescription(message).then(() => {
+        return peerConnection2.createAnswer()
+      }).then((sdp) => {
+        return peerConnection2.setLocalDescription(sdp)
+      }).then(() => {
+        socket.emit('answer', peerConnection2.localDescription)
+      });
+    });
+    socket.on('candidate', (candidate) => {
+      console.log('candidate');
+      console.log(candidate);
+      peerConnection2.addIceCandidate(candidate);
+    });
+    // peerConnection2.ontrack = (t) => {
+    //   remoteVideo.srcObject = t.streams[0];
+    // }
+    // peerConnection2.onaddstream = (event) => {
+    //   console.log('added stream');
+    //   console.log(event);
+    //   remoteVideo.srcObject = event.stream;
+    // }
+    peerConnection2.onicecandidate = (ice) => {
+      if(ice.candidate) {
+        console.log(ice.candidate.candidate);
+        socket.emit('candidate', ice.candidate);
+      }
+    }
+    peerConnection2.ontrack = (event) => {
+      console.log('added track');
+      console.log(event);
+      remoteVideo.srcObject = event.streams[0];
+    }
+    peerConnection2.oniceconnectionstatechange = (e) => {
+      console.log('ice state change');
+      console.log(e);
+    }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <video id="face_cam_vid" style="width: 300px;" controls autoplay></video>
+  <video id="thevid" style="width: 300px;" controls autoplay></video>
+  <script>
+    const yourVideo = document.querySelector("#face_cam_vid");
+    const theirVideo = document.querySelector("#thevid");
+
+    (async () => {
+      if (!("mediaDevices" in navigator) || !("RTCPeerConnection" in window)) {
+        alert("Sorry, your browser does not support WebRTC.");
+        return;
+      }
+      const stream = await navigator.mediaDevices.getDisplayMedia();
+      yourVideo.srcObject = stream;
+
+      const configuration = {
+        // sdpSemantics: 'plan-b',
+        // iceServers: [{urls: "stun:stun.1.google.com:19302"}]
+      };
+
+      const yours = new RTCPeerConnection(configuration);
+      const theirs = new RTCPeerConnection(configuration);
+
+      for (const track of stream.getTracks()) {
+        yours.addTrack(track, stream);
+      }
+      theirs.ontrack = e => theirVideo.srcObject = e.streams[0];
+
+      yours.onicecandidate = e => {
+        console.log(e);
+        return theirs.addIceCandidate(e.candidate);
+      }
+      theirs.onicecandidate = e => {
+        console.log(e);
+        return yours.addIceCandidate(e.candidate);
+      }
+
+      const offer = await yours.createOffer();
+      await yours.setLocalDescription(offer);
+      await theirs.setRemoteDescription(offer);
+
+      const answer = await theirs.createAnswer();
+      await theirs.setLocalDescription(answer);
+      await yours.setRemoteDescription(answer);
+    })();
+  </script>
+</body>
+</html>
