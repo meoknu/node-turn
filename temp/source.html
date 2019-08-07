@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <!-- <video class="localVideo" src="video.mp4" playsinline autoplay muted controls style="height: 400px;"></video> -->
+  <script src='http://localhost:5000/socket.io/socket.io.js'></script>
+  <script>
+    const socket = io('http://localhost:5000');
+    const localVideo = document.querySelector('.localVideo');
+    const config = 
+    // {
+    //   iceTransportPolicy: 'relay',
+    //   "iceServers": [{ 
+    //     "username": "z4VZO6whHJYlpjit3_wpywf0VfbxoCbWc2pwQ7vYgCp2gxii16mt0DhJh1pmF4BNAAAAAF1G9ldyYWdoYXZh",
+    //     "urls": ["stun:ws-turn3.xirsys.com", "turn:ws-turn3.xirsys.com:80?transport=udp", "turn:ws-turn3.xirsys.com:3478?transport=udp", "turn:ws-turn3.xirsys.com:80?transport=tcp", "turn:ws-turn3.xirsys.com:3478?transport=tcp", "turns:ws-turn3.xirsys.com:443?transport=tcp", "turns:ws-turn3.xirsys.com:5349?transport=tcp"],
+    //     "credential": "8f638840-b6ca-11e9-9e49-069f0817bf63" 
+    //   }]
+    // }
+    {  
+      iceTransportPolicy: 'relay',
+      iceServers: [
+        {
+          urls: ['stun:27.7.242.231']
+        },
+        {
+            urls: ['turn:27.7.242.231'],
+            username: 'username',
+            credential: 'password'
+        }
+      ]
+    };
+    socket.emit('join', '_room');
+    const peerConnection = new RTCPeerConnection(config);
+    navigator.mediaDevices.getDisplayMedia().then((stream) => {
+      // if (localVideo instanceof HTMLVideoElement) {
+      //   !localVideo.srcObject && (localVideo.srcObject = stream);
+      // }
+      window.s = stream;
+      peerConnection.addStream(stream);
+      peerConnection.createOffer().then((sdp) => {
+        return peerConnection.setLocalDescription(sdp);
+      }).then(() => {
+        socket.emit('offer', peerConnection.localDescription);
+      });
+    }).catch(err => {
+      alert(err)
+    })
+    peerConnection.onicecandidate = (ice) => {
+      if(ice.candidate) {
+        console.log(ice.candidate.candidate);
+        socket.emit('candidate', ice.candidate);
+      }
+    }
+    socket.on('candidate', (candidate) => {
+      console.log('candidate');
+      console.log(candidate);
+      peerConnection.addIceCandidate(candidate);
+    });
+    socket.on('answer', (message) => {
+      console.log('got answer');
+      console.log(message);
+      peerConnection.setRemoteDescription(message);
+    });
+
+
+    // function checkTURNServer(turnConfig, timeout){ 
+    //   return new Promise(function(resolve, reject){
+    //     setTimeout(function(){
+    //         if(promiseResolved) return;
+    //         resolve(false);
+    //         promiseResolved = true;
+    //     }, timeout || 5000);
+    //     var promiseResolved = false
+    //       , myPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection   //compatibility for firefox and chrome
+    //       , pc = new myPeerConnection({iceServers:[turnConfig]})
+    //       , noop = function(){};
+    //     pc.createDataChannel("");    //create a bogus data channel
+    //     pc.createOffer(function(sdp){
+    //       console.log(sdp);
+    //       if(sdp.sdp.indexOf('typ relay') > -1){ // sometimes sdp contains the ice candidates...
+    //         promiseResolved = true;
+    //         resolve(true);
+    //       }
+    //       pc.setLocalDescription(sdp, noop, noop);
+    //     }, noop);    // create offer and set local description
+    //     pc.onicecandidate = function(ice){  //listen for candidate events
+    //       console.log(ice);
+    //       if(promiseResolved || !ice || !ice.candidate || !ice.candidate.candidate || !(ice.candidate.candidate.indexOf('typ relay')>-1))  return;
+    //       promiseResolved = true;
+    //       resolve(true);
+    //     };
+    //   });   
+    // }
+    // checkTURNServer({
+    //   url: 'turn:27.7.242.231',
+    //   username: 'username',
+    //   credential: 'password'
+    // }).then(function(bool){
+    //   console.log('is TURN server active? ', bool? 'yes':'no');
+    // }).catch(console.error.bind(console));
+  </script>
+</body>
+</html>
